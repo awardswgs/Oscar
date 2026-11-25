@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Painel do Organizador · WGS Grammy 2026</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#09090b">
+  <meta name="color-scheme" content="dark">
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👑</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body data-page="admin">
+  <a class="skip-link" href="#admin-shell">Pular para o painel</a>
+
+  <!-- Camadas de fundo -->
+  <div class="bg-layers" aria-hidden="true">
+    <div class="bg-glow"></div>
+    <div class="bg-noise"></div>
+    <div class="bg-vignette"></div>
+  </div>
+
+  <!-- ============ PORTÃO DE ACESSO (Login / Carregando / Acesso Negado) ============ -->
+  <section id="admin-gate" class="admin-gate">
+    <div class="gate-box glass">
+      <div data-trophy="gate-svg"></div>
+
+      <!-- Carregando -->
+      <div id="gate-loading">
+        <h1>Painel do Organizador</h1>
+        <p id="gate-loading-text">Verificando credenciais…</p>
+        <div class="spinner-ring"></div>
+      </div>
+
+      <!-- Login -->
+      <div id="gate-login" hidden>
+        <div class="cat-kicker"><span></span>ÁREA RESTRITA<span></span></div>
+        <h1 class="gold-text">Painel do Organizador</h1>
+        <p>Entre com a conta Google autorizada para acompanhar a apuração em tempo real, projetar a cerimônia e encerrar a votação.</p>
+        <button id="btn-admin-login" class="btn btn-gold btn-lg">
+          <span>Entrar com Google</span>
+        </button>
+        <p style="margin-top:16px;font-size:12.5px;"><a href="index.html">← Voltar para a página de votação</a></p>
+      </div>
+
+      <!-- Acesso negado (mostra UID para facilitar a configuração) -->
+      <div id="gate-denied" hidden>
+        <div class="cat-kicker"><span></span>ACESSO NEGADO<span></span></div>
+        <h1>Conta não autorizada</h1>
+        <p>Você entrou como <b id="denied-email"></b>, mas esta conta não corresponde ao organizador configurado.</p>
+
+        <div class="uid-box">
+          <code id="denied-uid">—</code>
+          <button id="btn-copy-uid" class="btn btn-outline btn-sm">Copiar UID</button>
+        </div>
+
+        <div class="gate-help">
+          <b>É você o organizador?</b>
+          <ol>
+            <li>Copie o UID acima e cole em <code>ADMIN_UID</code> no arquivo <code>firebase-config.js</code> (e também em <code>firestore.rules</code>).</li>
+            <li>Opcionalmente, atualize <code>ADMIN_EMAIL</code> com o seu e-mail.</li>
+            <li>Salve e recarregue esta página.</li>
+          </ol>
+        </div>
+
+        <button id="btn-denied-logout" class="btn btn-ghost">Sair e trocar de conta</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PAINEL PRINCIPAL (só visível para o admin) ============ -->
+  <div id="admin-shell" class="admin-shell" hidden>
+
+    <header class="admin-top glass">
+      <div class="admin-brand">
+        <div data-trophy="top-svg"></div>
+        <div>
+          <h1 class="gold-text"><span data-ev="nome">WGS GRAMMY</span> <span data-ev="ano">2026</span></h1>
+          <small>Painel do Organizador</small>
+        </div>
+      </div>
+
+      <span id="status-pill" class="status-pill"><i></i><span>CARREGANDO</span></span>
+
+      <div class="admin-user">
+        <span id="admin-avatar"></span>
+        <span id="admin-email-label"></span>
+        <button id="btn-admin-logout" class="btn btn-ghost btn-sm">Sair</button>
+      </div>
+    </header>
+
+    <!-- Abas -->
+    <nav class="tabs" role="tablist">
+      <button class="tab is-active" data-tab="live" role="tab" aria-selected="true">📊 Tempo Real</button>
+      <button class="tab" data-tab="ceremony" role="tab" aria-selected="false">🏆 Modo Cerimônia</button>
+      <button class="tab" data-tab="control" role="tab" aria-selected="false">⚙️ Controle &amp; Encerramento</button>
+    </nav>
+
+    <!-- Alerta dinâmico (ex: config/evento não existe ou erro de regra) -->
+    <div id="admin-alert" class="admin-alert" hidden></div>
+
+    <!-- ============ ABA 1: DASHBOARD EM TEMPO REAL ============ -->
+    <section id="tab-live" class="tab-panel" role="tabpanel">
+      <div class="stats">
+        <div class="stat glass">
+          <div class="stat-label">Votos computados</div>
+          <div id="stat-votes" class="stat-value">0</div>
+          <div class="stat-sub">1 voto por conta Google</div>
+        </div>
+        <div class="stat glass">
+          <div class="stat-label">Categorias</div>
+          <div id="stat-cats" class="stat-value">0</div>
+          <div id="stat-nominees" class="stat-sub">0 indicados</div>
+        </div>
+        <div class="stat glass">
+          <div class="stat-label">Último voto</div>
+          <div id="stat-last" class="stat-value" style="font-size:22px;">—</div>
+          <div id="stat-mode" class="stat-sub">Aguardando…</div>
+        </div>
+      </div>
+
+      <div class="section-head">
+        <h2>Apuração por categoria</h2>
+        <div class="section-head-right">
+          <button id="btn-toggle-censor" class="btn btn-gold btn-sm" data-toggle-censor aria-pressed="true">🙈 Censura ATIVA · Mostrar parciais</button>
+          <span class="live-badge"><i></i>AO VIVO</span>
+        </div>
+      </div>
+
+      <div id="live-censor-banner" class="live-censor-banner glass">
+        <span class="censor-ico" aria-hidden="true">🙈</span>
+        <div class="censor-text">
+          <strong>Modo Censura Ativado (Anti-Spoiler)</strong>
+          <p>As parciais e líderes estão ocultos para ninguém ver quem está ganhando olhando sua tela. Você ainda pode acompanhar o total de votos acima.</p>
+        </div>
+        <button class="btn btn-outline btn-sm" data-toggle-censor>👁️ Desativar censura</button>
+      </div>
+
+      <div id="live-grid" class="live-grid"></div>
+
+      <div class="section-head" style="margin-top:26px;">
+        <h2>Quem já votou (Lista de Presença)</h2>
+        <span id="voters-count" class="voters-count">0 pessoas</span>
+      </div>
+      <div class="voters-card glass">
+        <p class="voters-note">🔒 Mostra apenas o nome da conta Google de quem já registrou voto — as escolhas continuam em sigilo absoluto.</p>
+        <ul id="voters-list" class="voters-list"></ul>
+      </div>
+    </section>
+
+    <!-- ============ ABA 2: MODO CERIMÔNIA ============ -->
+    <section id="tab-ceremony" class="tab-panel" role="tabpanel" hidden>
+      <div class="cer-launch glass">
+        <div data-trophy="cer-svg"></div>
+        <div class="cat-kicker" style="margin-top:10px;"><span></span>PROJEÇÃO NO TELÃO<span></span></div>
+        <h2 class="gold-text">Modo Cerimônia &amp; Revelação</h2>
+        <p>Abre uma tela cheia cinematográfica em fundo preto profundo para projetar no dia do evento. Escolha cada categoria, apresente os indicados com suspense e clique em <b>REVELAR VENCEDOR</b> para explodir confetes dourados na tela.</p>
+        <button id="btn-open-ceremony" class="btn btn-gold btn-xl">
+          <span>ABRIR MODO CERIMÔNIA</span>
+        </button>
+        <div class="kbd-hints">
+          <span><kbd>Espaço</kbd> Revelar vencedor</span>
+          <span><kbd>F</kbd> Tela cheia</span>
+          <span><kbd>V</kbd> Mostrar/ocultar votos</span>
+          <span><kbd>S</kbd> Som liga/desliga</span>
+          <span><kbd>Esc</kbd> Voltar / Sair</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ABA 3: CONTROLE & ENCERRAMENTO ============ -->
+    <section id="tab-control" class="tab-panel" role="tabpanel" hidden>
+      <div class="ctrl-grid">
+
+        <!-- Encerramento oficial -->
+        <article class="ctrl-card glass is-hero span-2">
+          <h3>🏆 Encerramento Oficial &amp; Cerimônia Sem Spoiler</h3>
+          <p id="ctrl-close-desc">Ao encerrar, a votação é travada e <b>todos os celulares entram em Modo Suspense (0 vencedores revelados)</b>. Os campeões só aparecem nos celulares quando você revelar cada um no <b>Modo Cerimônia</b> ou liberar abaixo!</p>
+          <div class="ctrl-row">
+            <button id="btn-close-voting" class="btn btn-gold btn-lg">ENCERRAR VOTAÇÃO (MODO SUSPENSE)</button>
+            <button id="btn-reopen-voting" class="btn btn-ghost" hidden>Reabrir votação</button>
+          </div>
+        </article>
+
+        <!-- Controle de Revelação 1 por 1 (Anti-Spoiler nos Celulares) -->
+        <article id="ctrl-reveal-card" class="ctrl-card glass is-hero span-2" hidden>
+          <div class="reveal-ctrl-head">
+            <div>
+              <h3>🎬 Controle do Palco Ao Vivo (Anti-Spoiler)</h3>
+              <p style="margin:4px 0 0;">Quem está com o celular aberto no <code>index.html</code> só vê as categorias que você liberar abaixo. Ao clicar em liberar, o celular de todo mundo atualiza sozinho e solta confetes!</p>
+            </div>
+            <span id="reveal-progress-pill" class="status-pill is-open"><i></i><span>1/3 LIBERADAS</span></span>
+          </div>
+
+          <div id="reveal-next-bar" class="reveal-next-bar"></div>
+
+          <ul id="ctrl-reveal-list" class="reveal-list"></ul>
+
+          <div class="ctrl-row" style="margin-top:14px;">
+            <button id="btn-reveal-all" class="btn btn-outline btn-sm">🔓 Liberar Todas as Categorias</button>
+            <button id="btn-lock-keep-first" class="btn btn-ghost btn-sm">🔒 Deixar Só a 1ª Liberada</button>
+            <button id="btn-lock-all" class="btn btn-ghost btn-sm">✉️ Deixar Todas em Suspense (0 liberadas)</button>
+          </div>
+        </article>
+
+        <!-- Status do documento config/evento -->
+        <article class="ctrl-card glass">
+          <h3>🎭 Cortinas &amp; config/evento</h3>
+          <p>Feche as cortinas antes do evento começar ou reabra quando quiser liberar o site para a turma.</p>
+          <dl id="ctrl-kv" class="kv" style="margin-bottom:16px;"></dl>
+          <div style="display:grid;gap:8px;">
+            <button id="btn-toggle-curtains" class="btn btn-gold" hidden>🎭 Fechar as Cortinas</button>
+            <button id="btn-init-evento" class="btn btn-outline">Inicializar config/evento</button>
+          </div>
+        </article>
+
+        <!-- Link da votação -->
+        <article class="ctrl-card glass">
+          <h3>🔗 Link da Votação</h3>
+          <p>Compartilhe o link oficial no grupo da turma ou abra a tela do votante para conferir como está ficando.</p>
+          <div class="ctrl-row">
+            <a class="btn btn-outline" href="index.html" target="_blank" rel="noopener">Abrir index.html</a>
+            <button id="btn-copy-vote-link" class="btn btn-ghost">Copiar link</button>
+          </div>
+        </article>
+
+        <!-- Ferramentas de Teste e Reset Geral -->
+        <article id="ctrl-test-card" class="ctrl-card glass span-2">
+          <h3>🧪 Testes &amp; Reset Geral (Pré-Evento)</h3>
+          <p>Precisa testar tudo de novo antes da cerimônia? O botão abaixo <b>apaga todos os votos de teste</b>, limpa os resultados publicados e reabre a votação do zero para você testar quantas vezes quiser.</p>
+          <div class="ctrl-row">
+            <button id="btn-demo-seed-25" class="btn btn-gold" hidden>+ Simular 25 votos</button>
+            <button id="btn-demo-seed-5" class="btn btn-outline" hidden>+ Simular 5 votos</button>
+            <button id="btn-demo-reset" class="btn btn-danger">🔄 Resetar Votação (Apagar votos e reabrir)</button>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ============ OVERLAY FULLSCREEN: MODO CERIMÔNIA ============ -->
+  <div id="ceremony" class="ceremony" hidden aria-modal="true" role="dialog" aria-label="Modo Cerimônia">
+    <div class="beams" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="stage-frame is-ceremony" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+
+    <div class="cer-controls">
+      <button id="cer-btn-sound" class="icon-btn" title="Som da cerimônia (S)" aria-label="Alternar som">🔊</button>
+      <button id="cer-btn-votes" class="icon-btn" title="Mostrar/ocultar votos no telão (V)" aria-label="Alternar exibição de votos">👁️</button>
+      <button id="cer-btn-fs" class="icon-btn" title="Tela cheia (F)" aria-label="Tela cheia">⛶</button>
+      <button id="cer-btn-exit" class="icon-btn" title="Sair do Modo Cerimônia (Esc)" aria-label="Sair">✕</button>
+    </div>
+
+    <div id="cer-stage" class="cer-stage"></div>
+  </div>
+
+  <div id="toasts" aria-live="polite"></div>
+
+  <script src="firebase-config.js"></script>
+  <script src="app.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
