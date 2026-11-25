@@ -1,0 +1,77 @@
+rules_version = '2';
+
+/* ==========================================================================
+   firestore.rules — Regras de segurança da votação
+   --------------------------------------------------------------------------
+   COMO USAR:
+   1. Troque TODAS as ocorrências de "SEU_ADMIN_UID_AQUI" pelo seu UID
+      (o mesmo colado em firebase-config.js).
+   2. Console do Firebase → Firestore Database → aba "Regras" → cole tudo → Publicar.
+
+   O QUE ESTAS REGRAS GARANTEM:
+   • Ninguém além do admin consegue LISTAR a coleção "votos" (sigilo absoluto:
+     nem pela interface, nem pelo DevTools/rede).
+   • Cada pessoa só lê o PRÓPRIO voto (para ver a tela "você já votou").
+   • 1 voto por pessoa: o ID do documento é o UID e update/delete são proibidos.
+   • Só é possível votar enquanto config/evento.votacaoAberta == true.
+   • config/evento é público para leitura e só o admin escreve.
+   ========================================================================== */
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Funções auxiliares ------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return request.auth != null && request.auth.uid == "SEU_ADMIN_UID_AQUI";
+    }
+
+    function votacaoAberta() {
+      return get(/databases/$(database)/documents/config/evento).data.votacaoAberta == true;
+    }
+
+    // Valida o formato do voto: só os campos esperados, data do servidor.
+    function votoValido() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['escolhas', 'criadoEm'])
+          && d.keys().hasAll(['escolhas', 'criadoEm'])
+          && d.escolhas is map
+          && d.escolhas.size() > 0
+          && d.escolhas.size() <= 60
+          && d.criadoEm == request.time;
+    }
+
+    // ---- Coleção de votos: votos/{userId} ----------------------------------
+    match /votos/{userId} {
+      // Ler UM documento: o admin, ou o próprio dono do voto.
+      allow get: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
+
+      // Listar/consultar a coleção inteira: SOMENTE o admin.
+      allow list: if isAdmin();
+
+      // Criar o voto: logado, no próprio UID, com votação aberta e formato válido.
+      allow create: if isSignedIn()
+                    && request.auth.uid == userId
+                    && votacaoAberta()
+                    && votoValido();
+
+      // Votos são imutáveis para votantes; apenas o admin pode apagar votos de teste.
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // ---- Documento de configuração: config/evento ---------------------------
+    match /config/evento {
+      allow read: if true;        // público (status + resultados finais publicados)
+      allow write: if isAdmin();  // somente o organizador
+    }
+
+    // ---- Todo o resto é bloqueado -------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
