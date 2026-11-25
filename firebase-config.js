@@ -28,11 +28,11 @@ const firebaseConfig = {
    login com a sua conta Google. A tela de "acesso negado" mostrará o seu UID
    com um botão de copiar. Cole-o aqui E também no arquivo firestore.rules.
    -------------------------------------------------------------------------- */
-const ADMIN_UID = "SEU_ADMIN_UID_AQUI";
+const ADMIN_UID = "MPC53zedqPONkerRGbGGsYUwroU2";
 
 /* (Opcional) E-mail do organizador — usado como segunda verificação no
    admin.html. As regras de segurança do Firestore usam SEMPRE o UID. */
-const ADMIN_EMAIL = "seu.email@gmail.com";
+const ADMIN_EMAIL = "awardswgs@gmail.com";
 
 /* --------------------------------------------------------------------------
    3) 👇 DADOS DO EVENTO (aparecem na tela inicial, cerimônia e resultados)
